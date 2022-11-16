@@ -1,0 +1,71 @@
+#!/bin/bash
+
+# Get arguments
+
+while getopts d:o: flag
+do
+	case "${flag}" in
+		d) dom=${OPTARG};;
+		o) out=${OPTARG};;
+	esac
+done
+
+# Define bash colors
+
+GREEN="\e[1;32m"
+RED="\e[38;5;196m"
+ENDCOLOR="\e[0m"
+
+# Print header
+echo -e $RED
+echo -e "\n\t\t               _     __            "
+echo -e "\t\t   _________  (_)___/ /__  __  __  "
+echo -e "\t\t  / ___/ __ \/ / __  / _ \/ / / /  "
+echo -e "\t\t (__  ) /_/ / / /_/ /  __/ /_/ /   "
+echo -e "\t\t/____/ .___/_/\__,_/\___/\__, /    "
+echo -e "\t\t    /_/{Ultimate Recon!}/____/ ${ENDCOLOR}"
+echo -e "\n\t\t\t      @aku \n"
+
+
+if [[ -z $dom  ]]
+then 
+    echo -e "\t\tYou better use -d flag spidey"
+    exit 1
+fi
+
+# Check host is up or not
+
+PING_RES=$(ping -c2 $dom 2>/dev/null)
+
+if [[ -z  $PING_RES ]]
+then
+	echo -e "\t\tHost ${dev} is unreachable"
+	exit 1
+fi
+
+# Check spidey scan's directory existence
+
+if [[ ! -d /tmp/spidey_scans/ ]]
+then
+    mkdir /tmp/spidey_scans/
+fi
+
+# Start multiple tools for subdomain enumeration
+
+sublist3r -d $dom -o /tmp/spidey_scans/sublister_scan &>/dev/null
+amass enum -d $dom -passive -active -o /tmp/spidey_scans/amass_scan &>/dev/null
+subfinder -d $dom -o /tmp/spidey_scans/subfinder_scan &>/dev/null
+assetfinder $dom|grep '$dom$'| sed -e "s/*\.//g" > /tmp/spidey_scans/assetfinder_scan &>/dev/null
+
+echo -e $GREEN
+
+CATEFILE=$(cat /tmp/spidey_scans/* | sort | uniq | httprobe | sed -e "s/https\?:\/\///g" | sort | uniq)
+
+if [[ -z $out  ]]
+then
+	echo $CATEFILE|sed -e "s/ /\n/g"
+else 
+	echo $CATEFILE|sed -e "s/ /\n/g" && echo $CATEFILE|sed -e "s/ /\n/g" > $out
+fi
+
+echo -e $ENDCOLOR
